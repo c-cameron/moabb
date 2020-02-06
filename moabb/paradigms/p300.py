@@ -48,12 +48,13 @@ class BaseP300(BaseParadigm):
     """
 
     def __init__(self, filters=([1, 24],), events=None, tmin=0.0, tmax=None,
-                 channels=None, resample=None):
+                 channels=None, resample=None, reject_uv=None):
         super().__init__()
         self.filters = filters
         self.channels = channels
         self.events = events
         self.resample = resample
+        self.reject_uv = reject_uv
 
         if (tmax is not None):
             if tmin >= tmax:
