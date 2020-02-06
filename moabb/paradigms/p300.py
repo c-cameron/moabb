@@ -133,6 +133,11 @@ class BaseP300(BaseParadigm):
                                 on_missing='ignore')
             if self.resample is not None:
                 epochs = epochs.resample(self.resample)
+            if self.reject_uv is not None:
+                pre_drop_events = len(epochs.events)
+                epochs.drop_bad(reject={'eeg': self.reject_uv/dataset.unit_factor})
+                post_drop_events = len(epochs.events)
+                print(f'Dropped {pre_drop_events - post_drop_events} out of {pre_drop_events} events.')
             # rescale to work with uV
             X.append(dataset.unit_factor * epochs.get_data())
 
