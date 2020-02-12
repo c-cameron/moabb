@@ -48,13 +48,14 @@ class BaseP300(BaseParadigm):
     """
 
     def __init__(self, filters=([1, 24],), events=None, tmin=0.0, tmax=None,
-                 channels=None, resample=None, reject_uv=None):
+                 channels=None, resample=None, reject_uv=None, baseline=None):
         super().__init__()
         self.filters = filters
         self.channels = channels
         self.events = events
         self.resample = resample
         self.reject_uv = reject_uv
+        self.baseline = baseline
 
         if (tmax is not None):
             if tmin >= tmax:
@@ -80,7 +81,7 @@ class BaseP300(BaseParadigm):
     def used_events(self, dataset):
         pass
 
-    def process_raw(self, raw, dataset):
+    def process_raw(self, raw, dataset, return_epochs=False):
         # find the events, first check stim_channels then annotations
         stim_channels = mne.utils._get_stim_channel(
             None, raw.info, raise_error=False)
@@ -127,11 +128,18 @@ class BaseP300(BaseParadigm):
             raw_f = raw.copy().filter(fmin, fmax, method='iir',
                                       picks=picks, verbose=False)
             # epoch data
+            if self.baseline == 'estimate-soa':
+                baseline = (-np.median(np.diff(events[1:-1, 0]))/1000, 0)
+                print(f'Estimated SOA: {-baseline[0]:1.4f}')
+                tmin_temp = np.min([tmin, baseline[0]])
+            else:
+                baseline = self.baseline
+                tmin_temp = tmin
             epochs = mne.Epochs(raw_f, events, event_id=event_id,
-                                tmin=tmin, tmax=tmax, proj=False,
-                                baseline=None, preload=True,
+                                tmin=tmin_temp, tmax=tmax, proj=False,
+                                baseline=baseline, preload=True,
                                 verbose=False, picks=picks,
-                                on_missing='ignore')
+                                on_missing='ignore').crop(tmin, None).apply_baseline(None)
             if self.resample is not None:
                 epochs = epochs.resample(self.resample)
             if self.reject_uv is not None:
@@ -140,7 +148,10 @@ class BaseP300(BaseParadigm):
                 post_drop_events = len(epochs.events)
                 print(f'Dropped {pre_drop_events - post_drop_events} out of {pre_drop_events} events.')
             # rescale to work with uV
-            X.append(dataset.unit_factor * epochs.get_data())
+            if return_epochs:
+                X.append(epochs)
+            else:
+                X.append(dataset.unit_factor * epochs.get_data())
 
         inv_events = {k: v for v, k in event_id.items()}
         labels = np.array([inv_events[e] for e in epochs.events[:, -1]])

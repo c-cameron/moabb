@@ -155,7 +155,7 @@ class BaseParadigm(metaclass=ABCMeta):
         metadata = pd.DataFrame(index=range(len(labels)))
         return X, labels, metadata
 
-    def get_data(self, dataset, subjects=None):
+    def get_data(self, dataset, subjects=None, return_epochs=False):
         """
         Return the data for a list of subject.
 
@@ -197,7 +197,7 @@ class BaseParadigm(metaclass=ABCMeta):
         for subject, sessions in data.items():
             for session, runs in sessions.items():
                 for run, raw in runs.items():
-                    proc = self.process_raw(raw, dataset)
+                    proc = self.process_raw(raw, dataset, return_epochs=return_epochs)
 
                     if proc is None:
                         # this mean the run did not contain any selected event
@@ -211,12 +211,15 @@ class BaseParadigm(metaclass=ABCMeta):
                     metadata.append(met)
 
                     # grow X and labels in a memory efficient way. can be slow
-                    if len(X) > 0:
-                        X = np.append(X, x, axis=0)
-                        labels = np.append(labels, lbs, axis=0)
+                    if not return_epochs:
+                        if len(X) > 0:
+                            X = np.append(X, x, axis=0)
+                            labels = np.append(labels, lbs, axis=0)
+                        else:
+                            X = x
+                            labels = lbs
                     else:
-                        X = x
-                        labels = lbs
+                        X.append(x)
 
         metadata = pd.concat(metadata, ignore_index=True)
         return X, labels, metadata
