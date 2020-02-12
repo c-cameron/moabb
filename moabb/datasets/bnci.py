@@ -231,13 +231,20 @@ def _load_data_009_2014(subject,
     event_id = {}
     for run in data:
         raw, ev = _convert_run_p300_sl(run, verbose=verbose)
-        raws.append(raw)
+        splits = np.argwhere(np.diff(np.argwhere(run.y == 1).ravel()) > 1000).ravel() + 256
+        splits = np.insert(splits, 0, 0)
+        splits = splits[::2]
+        for i in range(len(splits)-1):
+            temp_raw = raw.copy().crop(tmin=raw.times[splits[i]], tmax=raw.times[splits[i+1]])
+            raws.append(temp_raw)
         event_id.update(ev)
 
     sessions = {}
-    sessions['session_0'] = {}
     for i, rawi in enumerate(raws):
-        sessions['session_0']['run_' + str(i)] = rawi
+        sess_key = f'session_0_run_{i}'
+        if sess_key not in sessions:
+            sessions[sess_key] = {}
+        sessions[sess_key]['run_' + str(i)] = rawi
 
     return sessions
 
