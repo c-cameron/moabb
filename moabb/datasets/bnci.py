@@ -231,10 +231,14 @@ def _load_data_009_2014(subject,
     event_id = {}
     for run in data:
         raw, ev = _convert_run_p300_sl(run, verbose=verbose)
-        splits = np.argwhere(np.diff(np.argwhere(run.y == 1).ravel()) > 1000).ravel() + 256
+        c = 0
+        cumcount_y = np.zeros_like(run.y).astype(np.uint32)
+        for i, y in enumerate(run.y):
+            c = c + 1 if y < 1 else 0
+            cumcount_y[i] = c
+        splits = np.argwhere(cumcount_y == 500).ravel()
         splits = np.insert(splits, 0, 0)
-        splits = splits[::2]
-        for i in range(len(splits)-1):
+        for i in range(1, len(splits)-1):
             temp_raw = raw.copy().crop(tmin=raw.times[splits[i]], tmax=raw.times[splits[i+1]])
             raws.append(temp_raw)
         event_id.update(ev)
