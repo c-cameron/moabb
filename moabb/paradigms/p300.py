@@ -129,12 +129,11 @@ class BaseP300(BaseParadigm):
                                       picks=picks, verbose=False)
             # epoch data
             if self.baseline == 'estimate-soa':
-                baseline = (-np.median(np.diff(events[1:-1, 0]))/1000, 0)
+                baseline = (-np.median(np.diff(events[1:-1, 0]))/1000, 0)  # fixme, this only works for 1000 Hz events
                 print(f'Estimated SOA: {-baseline[0]:1.4f}')
-                tmin_temp = np.min([tmin, baseline[0]])
             else:
                 baseline = self.baseline
-                tmin_temp = tmin
+            tmin_temp = np.min([tmin, baseline[0]]) if baseline is not None else tmin
             epochs = mne.Epochs(raw_f, events, event_id=event_id,
                                 tmin=tmin_temp, tmax=tmax, proj=False,
                                 baseline=baseline, preload=True,
