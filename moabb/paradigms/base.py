@@ -62,7 +62,7 @@ class BaseParadigm(metaclass=ABCMeta):
         """
         pass
 
-    def process_raw(self, raw, dataset):
+    def process_raw(self, raw, dataset, return_epochs=False):
         """
         Process one raw data file.
 
@@ -83,10 +83,16 @@ class BaseParadigm(metaclass=ABCMeta):
             The dataset corresponding to the raw file. mainly use to access
             dataset specific information.
 
+        return_epochs: boolean
+            This flag specifies whether to return only the data array or the
+            complete processed mne.Epochs
+
         returns
         -------
-        X : np.ndarray
+        X : Union[np.ndarray, mne.Epochs]
             the data that will be used as features for the model
+            Note: if return_epochs=True,  this is mne.Epochs
+                  if return_epochs=False, this is np.ndarray
 
         labels: np.ndarray
             the labels for training / evaluating the model
@@ -95,14 +101,17 @@ class BaseParadigm(metaclass=ABCMeta):
             A dataframe containing the metadata
 
         """
+        # get events id
+        event_id = self.used_events(dataset)
+
         # find the events, first check stim_channels then annotations
         stim_channels = mne.utils._get_stim_channel(
             None, raw.info, raise_error=False)
         if len(stim_channels) > 0:
             events = mne.find_events(raw, shortest_event=0, verbose=False)
         else:
-            events, _ = mne.events_from_annotations(raw, verbose=False)
-
+            events, _ = mne.events_from_annotations(raw, event_id=event_id,
+                                                    verbose=False)
         channels = () if self.channels is None else self.channels
 
         # picks channels
@@ -141,7 +150,10 @@ class BaseParadigm(metaclass=ABCMeta):
             if self.resample is not None:
                 epochs = epochs.resample(self.resample)
             # rescale to work with uV
-            X.append(dataset.unit_factor * epochs.get_data())
+            if return_epochs:
+                X.append(epochs)
+            else:
+                X.append(dataset.unit_factor * epochs.get_data())
 
         inv_events = {k: v for v, k in event_id.items()}
         labels = np.array([inv_events[e] for e in epochs.events[:, -1]])
@@ -197,7 +209,8 @@ class BaseParadigm(metaclass=ABCMeta):
         for subject, sessions in data.items():
             for session, runs in sessions.items():
                 for run, raw in runs.items():
-                    proc = self.process_raw(raw, dataset, return_epochs=return_epochs)
+                    proc = self.process_raw(raw, dataset,
+                                            return_epochs=return_epochs)
 
                     if proc is None:
                         # this mean the run did not contain any selected event
