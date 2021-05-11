@@ -1,5 +1,8 @@
 import logging
+import os
+import pickle
 from abc import ABCMeta, abstractmethod, abstractproperty
+from pathlib import Path
 
 import mne
 import numpy as np
@@ -180,19 +183,18 @@ class BaseParadigm(metaclass=ABCMeta):
         inv_events = {k: v for v, k in event_id.items()}
         labels = np.array([inv_events[e] for e in epochs.events[:, -1]])
 
-        if return_epochs:
-            X = mne.concatenate_epochs(X)
-        elif len(self.filters) == 1:
-            # if only one band, return a 3D array
+        # if only one band, return a 3D array, otherwise return a 4D
+        if len(self.filters) == 1:
             X = X[0]
         else:
-            # otherwise return a 4D
             X = np.array(X).transpose((1, 2, 3, 0))
 
         metadata = pd.DataFrame(index=range(len(labels)))
         return X, labels, metadata
 
-    def get_data(self, dataset, subjects=None, return_epochs=False):
+    def get_data(
+        self, dataset, subjects=None, return_epochs=False, return_runs=False, cache=False
+    ):
         """
         Return the data for a list of subject.
 
@@ -225,6 +227,23 @@ class BaseParadigm(metaclass=ABCMeta):
             A dataframe containing the metadata.
         """
 
+        if cache:
+            tmp = Path("/tmp/moabb/cache")
+            os.makedirs(tmp, exist_ok=True)
+            prefix = f"{dataset.__class__.__name__}_{subjects}"
+            try:
+                epochs = mne.read_epochs(tmp / f"{prefix}-epo.fif")
+                with open(tmp / f"{prefix}.pkl", "rb") as pklf:
+                    d = pickle.load(pklf)
+                labels = d["labels"]
+                metadata = d["metadata"]
+                X = d["X"]
+                raws = None
+                return X, labels, metadata, epochs, raws
+            except Exception as e:
+                print("Could not read cached data. Preprocessing from scratch.")
+                print(e)
+
         if not self.is_valid(dataset):
             message = "Dataset {} is not valid for paradigm".format(dataset.code)
             raise AssertionError(message)
@@ -232,33 +251,64 @@ class BaseParadigm(metaclass=ABCMeta):
         data = dataset.get_data(subjects)
         self.prepare_process(dataset)
 
-        X = [] if return_epochs else np.array([])
+        X = []
         labels = []
         metadata = []
+        epochs = []
+        raws = []
         for subject, sessions in data.items():
             for session, runs in sessions.items():
                 for run, raw in runs.items():
-                    proc = self.process_raw(raw, dataset, return_epochs=return_epochs)
+                    proc = self.process_raw(
+                        raw, dataset, return_epochs=return_epochs, return_runs=return_runs
+                    )
 
                     if proc is None:
                         # this mean the run did not contain any selected event
                         # go to next
                         continue
 
-                    x, lbs, met = proc
+                    x, lbs, met, epo, raw = proc
                     met["subject"] = subject
                     met["session"] = session
                     met["run"] = run
                     metadata.append(met)
 
                     # grow X and labels in a memory efficient way. can be slow
-                    if return_epochs:
-                        X.append(x)
+                    if len(X) > 0:
+                        X = np.append(X, x, axis=0)
+                        labels = np.append(labels, lbs, axis=0)
                     else:
-                        X = np.append(X, x, axis=0) if len(X) else x
-                    labels = np.append(labels, lbs, axis=0)
+                        X = x
+                        labels = lbs
+                    if return_epochs:
+                        epochs.append(epo)
+                    if return_runs:
+                        raws.append(raw)
 
         metadata = pd.concat(metadata, ignore_index=True)
         if return_epochs:
-            X = mne.concatenate_epochs(X)
-        return X, labels, metadata
+            epochs = mne.concatenate_epochs(epochs)
+            if len(epochs) != X.shape[0]:
+                raise ValueError("Size of epochs differs from feature array")
+
+        if cache:
+            tmp = Path("/tmp/moabb/cache")
+            os.makedirs(tmp, exist_ok=True)
+            prefix = f"{dataset.__class__.__name__}_{subjects}"
+            try:
+                epochs.save(tmp / f"{prefix}-epo.fif", overwrite=True)
+                with open(tmp / f"{prefix}.pkl", "wb") as pklf:
+                    pickle.dump(
+                        {
+                            "labels": labels,
+                            "metadata": metadata,
+                            "X": X,
+                        },
+                        pklf,
+                    )
+            except Exception as e:
+                print("Could not store cached data")
+                print(e)
+
+        return X, labels, metadata, epochs, raws

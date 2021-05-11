@@ -98,7 +98,7 @@ class BaseP300(BaseParadigm):
     def used_events(self, dataset):
         pass
 
-    def process_raw(self, raw, dataset, return_epochs=False):  # noqa: C901
+    def process_raw(self, raw, dataset, return_epochs=False, return_runs=False):
         # find the events, first check stim_channels then annotations
         stim_channels = mne.utils._get_stim_channel(None, raw.info, raise_error=False)
         if len(stim_channels) > 0:
@@ -134,6 +134,8 @@ class BaseP300(BaseParadigm):
             tmax = self.tmax + dataset.interval[0]
 
         X = []
+        all_epochs = []
+        all_runs = []
         for bandpass in self.filters:
             fmin, fmax = bandpass
             # filter data
@@ -152,12 +154,10 @@ class BaseP300(BaseParadigm):
             else:
                 bmin = tmin
                 bmax = tmax
-            epochs = mne.Epochs(
-                raw_f,
-                events,
+            epoching_kwargs = dict(
                 event_id=event_id,
-                tmin=bmin,
-                tmax=bmax,
+                tmin=tmin,
+                tmax=tmax,
                 proj=False,
                 baseline=baseline,
                 preload=True,
@@ -165,30 +165,33 @@ class BaseP300(BaseParadigm):
                 picks=picks,
                 on_missing="ignore",
             )
+            epochs = mne.Epochs(
+                raw_f,
+                events,
+                **epoching_kwargs,
+            )
             if bmin < tmin or bmax > tmax:
                 epochs.crop(tmin=tmin, tmax=tmax)
             if self.resample is not None:
                 epochs = epochs.resample(self.resample)
             # rescale to work with uV
-            if return_epochs:
-                X.append(epochs)
-            else:
-                X.append(dataset.unit_factor * epochs.get_data())
+            all_epochs.append(epochs if return_epochs else None)
+            all_runs.append(raw_f if return_runs else None)
+            X.append(dataset.unit_factor * epochs.get_data())
 
         inv_events = {k: v for v, k in event_id.items()}
         labels = np.array([inv_events[e] for e in epochs.events[:, -1]])
 
-        if return_epochs:
-            X = mne.concatenate_epochs(X)
-        elif len(self.filters) == 1:
-            # if only one band, return a 3D array
+        # if only one band, return a 3D array, otherwise return a 4D
+        if len(self.filters) == 1:
             X = X[0]
+            all_epochs = all_epochs[0]
+            all_runs = all_runs[0]
         else:
-            # otherwise return a 4D
             X = np.array(X).transpose((1, 2, 3, 0))
 
         metadata = pd.DataFrame(index=range(len(labels)))
-        return X, labels, metadata
+        return X, labels, metadata, all_epochs, (all_runs, events, epoching_kwargs)
 
     @property
     def datasets(self):
