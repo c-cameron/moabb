@@ -561,7 +561,8 @@ def _convert_run(run, ch_names=None, ch_types=None, verbose=None):
 def _convert_run_p300_sl(run, verbose=None):
     """Convert one p300 run from santa lucia file format."""
     montage = make_standard_montage("standard_1005")
-    eeg_data = 1e-6 * run.X
+    # eeg_data = 1e-6 * run.X
+    eeg_data = 1e-7 * run.X  # 1e-6 is IMO too large
     sfreq = 256
     ch_names = list(run.channels) + ["Target stim", "Flash stim"]
     ch_types = ["eeg"] * len(run.channels) + ["stim"] * 2

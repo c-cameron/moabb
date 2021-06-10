@@ -108,7 +108,7 @@ class Results:
 
         with h5py.File(self.filepath, "r+") as f:
             for name, data_dict in results.items():
-                digest = get_digest(pipelines[name])
+                digest = get_digest(name)
                 if digest not in f.keys():
                     # create pipeline main group if nonexistant
                     f.create_group(digest)
@@ -162,7 +162,7 @@ class Results:
         # get the list of pipeline hash
         digests = []
         if pipelines is not None:
-            digests = [get_digest(pipelines[name]) for name in pipelines]
+            digests = [get_digest(name) for name in pipelines]
 
         with h5py.File(self.filepath, "r") as f:
             for digest, p_group in f.items():

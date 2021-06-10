@@ -66,6 +66,7 @@ class BaseP300(BaseParadigm):
         baseline=None,
         channels=None,
         resample=None,
+        reject_uv=None,
     ):
         super().__init__()
         self.filters = filters
@@ -73,6 +74,7 @@ class BaseP300(BaseParadigm):
         self.channels = channels
         self.baseline = baseline
         self.resample = resample
+        self.reject_uv = reject_uv
 
         if tmax is not None:
             if tmin >= tmax:
@@ -170,6 +172,8 @@ class BaseP300(BaseParadigm):
                 events,
                 **epoching_kwargs,
             )
+            if self.reject_uv is not None:
+                epochs.drop_bad(dict(eeg=self.reject_uv / 1e6))
             if bmin < tmin or bmax > tmax:
                 epochs.crop(tmin=tmin, tmax=tmax)
             if self.resample is not None:
