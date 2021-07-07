@@ -136,8 +136,7 @@ class BaseP300(BaseParadigm):
             tmax = self.tmax + dataset.interval[0]
 
         X = []
-        all_epochs = []
-        all_runs = []
+        runs = []
         for bandpass in self.filters:
             fmin, fmax = bandpass
             # filter data
@@ -179,23 +178,24 @@ class BaseP300(BaseParadigm):
             if self.resample is not None:
                 epochs = epochs.resample(self.resample)
             # rescale to work with uV
-            all_epochs.append(epochs if return_epochs else None)
-            all_runs.append(raw_f if return_runs else None)
-            X.append(dataset.unit_factor * epochs.get_data())
+            runs.append(raw_f if return_runs else None)
+            if return_epochs:
+                X.append(epochs)
+            else:
+                X.append(dataset.unit_factor * epochs.get_data())
 
         inv_events = {k: v for v, k in event_id.items()}
         labels = np.array([inv_events[e] for e in epochs.events[:, -1]])
 
         # if only one band, return a 3D array, otherwise return a 4D
-        if len(self.filters) == 1:
-            X = X[0]
-            all_epochs = all_epochs[0]
-            all_runs = all_runs[0]
-        else:
-            X = np.array(X).transpose((1, 2, 3, 0))
+        if not return_epochs:
+            if len(self.filters) == 1:
+                X = X[0]
+            else:
+                X = np.array(X).transpose((1, 2, 3, 0))
 
         metadata = pd.DataFrame(index=range(len(labels)))
-        return X, labels, metadata, all_epochs, (all_runs, events, epoching_kwargs)
+        return X, labels, metadata, (runs, events, epoching_kwargs)
 
     @property
     def datasets(self):

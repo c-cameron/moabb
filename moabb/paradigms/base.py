@@ -67,7 +67,9 @@ class BaseParadigm(metaclass=ABCMeta):
         """
         pass
 
-    def process_raw(self, raw, dataset, return_epochs=False):  # noqa: C901
+    def process_raw(
+        self, raw, dataset, return_epochs=False, return_runs=False
+    ):  # noqa: C901
         """
         Process one raw data file.
 
@@ -138,6 +140,7 @@ class BaseParadigm(metaclass=ABCMeta):
             tmax = self.tmax + dataset.interval[0]
 
         X = []
+        runs = []
         for bandpass in self.filters:
             fmin, fmax = bandpass
             # filter data
@@ -179,6 +182,8 @@ class BaseParadigm(metaclass=ABCMeta):
                 X.append(epochs)
             else:
                 X.append(dataset.unit_factor * epochs.get_data())
+            if return_runs:
+                runs.append(raw_f)
 
         inv_events = {k: v for v, k in event_id.items()}
         labels = np.array([inv_events[e] for e in epochs.events[:, -1]])
@@ -190,7 +195,7 @@ class BaseParadigm(metaclass=ABCMeta):
             X = np.array(X).transpose((1, 2, 3, 0))
 
         metadata = pd.DataFrame(index=range(len(labels)))
-        return X, labels, metadata
+        return X, labels, metadata, runs
 
     def get_data(
         self, dataset, subjects=None, return_epochs=False, return_runs=False, cache=False
@@ -214,6 +219,12 @@ class BaseParadigm(metaclass=ABCMeta):
         return_epochs: boolean
             This flag specifies whether to return only the data array or the
             complete processed mne.Epochs
+        return_runs: boolean
+            If True, the processed runs before epoching are also returned
+        cache: boolean
+            If True, paradigm processed data is stored in /tmp and read from
+            there if available. WARNING: does not notice changes in preprocessing
+            and could lead to disk space issues.
 
         returns
         -------
@@ -232,14 +243,13 @@ class BaseParadigm(metaclass=ABCMeta):
             os.makedirs(tmp, exist_ok=True)
             prefix = f"{dataset.__class__.__name__}_{subjects}"
             try:
-                epochs = mne.read_epochs(tmp / f"{prefix}-epo.fif")
                 with open(tmp / f"{prefix}.pkl", "rb") as pklf:
                     d = pickle.load(pklf)
                 labels = d["labels"]
                 metadata = d["metadata"]
                 X = d["X"]
                 raws = None
-                return X, labels, metadata, epochs, raws
+                return X, labels, metadata, raws
             except Exception as e:
                 print("Could not read cached data. Preprocessing from scratch.")
                 print(e)
@@ -254,43 +264,44 @@ class BaseParadigm(metaclass=ABCMeta):
         X = []
         labels = []
         metadata = []
-        epochs = []
-        raws = []
+        processed_runs = []
         for subject, sessions in data.items():
             for session, runs in sessions.items():
                 for run, raw in runs.items():
-                    proc = self.process_raw(raw, dataset, return_epochs=return_epochs)
+                    proc = self.process_raw(
+                        raw, dataset, return_epochs=return_epochs, return_runs=return_runs
+                    )
 
                     if proc is None:
                         # this mean the run did not contain any selected event
                         # go to next
                         continue
 
-                    x, lbs, met = proc
+                    x, lbs, met, praw = proc
                     met["subject"] = subject
                     met["session"] = session
                     met["run"] = run
                     metadata.append(met)
 
                     # grow X and labels in a memory efficient way. can be slow
-                    if return_epochs:
-                        X.append(x)
-                    elif len(X) > 0:
-                        X = np.append(X, x, axis=0)
+                    if len(X) > 0:
+                        if return_epochs:
+                            X.append(x)
+                        else:
+                            X = np.append(X, x, axis=0)
                         labels = np.append(labels, lbs, axis=0)
                     else:
-                        X = x
+                        X = [x] if return_epochs else x
                         labels = lbs
-                    # if return_epochs:
-                    #     epochs.append(epo)
-                    # if return_runs:
-                    #     raws.append(raw)
+                    if return_runs:
+                        processed_runs.append(praw)
 
         metadata = pd.concat(metadata, ignore_index=True)
         if return_epochs:
+            # TODO: how do we handle filter-bank for ERP? Should we at all?
+            if type(X[0]) is list:
+                X = [x[0] for x in X]
             X = mne.concatenate_epochs(X)
-            # if len(epochs) != X.shape[0]:
-            #     raise ValueError("Size of epochs differs from feature array")
 
         if cache:
             tmp = Path("/tmp/moabb/cache")
@@ -311,4 +322,4 @@ class BaseParadigm(metaclass=ABCMeta):
                 print("Could not store cached data")
                 print(e)
 
-        return X, labels, metadata, epochs, raws
+        return X, labels, metadata, processed_runs
