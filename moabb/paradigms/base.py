@@ -300,7 +300,8 @@ class BaseParadigm(metaclass=ABCMeta):
         if return_epochs:
             # TODO: how do we handle filter-bank for ERP? Should we at all?
             if type(X[0]) is list:
-                X = [x[0] for x in X]
+                # X = [x[0] for x in X]
+                X = [x[0] for x in X if len(x[0]) > 0]
             X = mne.concatenate_epochs(X)
 
         if cache:
