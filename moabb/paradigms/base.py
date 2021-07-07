@@ -259,45 +259,45 @@ class BaseParadigm(metaclass=ABCMeta):
         for subject, sessions in data.items():
             for session, runs in sessions.items():
                 for run, raw in runs.items():
-                    proc = self.process_raw(
-                        raw, dataset, return_epochs=return_epochs, return_runs=return_runs
-                    )
+                    proc = self.process_raw(raw, dataset, return_epochs=return_epochs)
 
                     if proc is None:
                         # this mean the run did not contain any selected event
                         # go to next
                         continue
 
-                    x, lbs, met, epo, raw = proc
+                    x, lbs, met = proc
                     met["subject"] = subject
                     met["session"] = session
                     met["run"] = run
                     metadata.append(met)
 
                     # grow X and labels in a memory efficient way. can be slow
-                    if len(X) > 0:
+                    if return_epochs:
+                        X.append(x)
+                    elif len(X) > 0:
                         X = np.append(X, x, axis=0)
                         labels = np.append(labels, lbs, axis=0)
                     else:
                         X = x
                         labels = lbs
-                    if return_epochs:
-                        epochs.append(epo)
-                    if return_runs:
-                        raws.append(raw)
+                    # if return_epochs:
+                    #     epochs.append(epo)
+                    # if return_runs:
+                    #     raws.append(raw)
 
         metadata = pd.concat(metadata, ignore_index=True)
         if return_epochs:
-            epochs = mne.concatenate_epochs(epochs)
-            if len(epochs) != X.shape[0]:
-                raise ValueError("Size of epochs differs from feature array")
+            X = mne.concatenate_epochs(X)
+            # if len(epochs) != X.shape[0]:
+            #     raise ValueError("Size of epochs differs from feature array")
 
         if cache:
             tmp = Path("/tmp/moabb/cache")
             os.makedirs(tmp, exist_ok=True)
             prefix = f"{dataset.__class__.__name__}_{subjects}"
             try:
-                epochs.save(tmp / f"{prefix}-epo.fif", overwrite=True)
+                # epochs.save(tmp / f"{prefix}-epo.fif", overwrite=True)
                 with open(tmp / f"{prefix}.pkl", "wb") as pklf:
                     pickle.dump(
                         {
