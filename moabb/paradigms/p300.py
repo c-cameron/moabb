@@ -172,7 +172,10 @@ class BaseP300(BaseParadigm):
                 **epoching_kwargs,
             )
             if self.reject_uv is not None:
+                n_before = len(epochs)
                 epochs.drop_bad(dict(eeg=self.reject_uv / 1e6))
+                n_after = len(epochs)
+                print(f"Dropped {n_after - n_before} epochs out of {n_before}")
             if bmin < tmin or bmax > tmax:
                 epochs.crop(tmin=tmin, tmax=tmax)
             if self.resample is not None:
