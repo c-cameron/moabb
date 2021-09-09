@@ -11,7 +11,78 @@ What's new
    - "API changes" for backward-incompatible changes
 .. _current:
 
-Dev - 0.4.0dev
+
+Develop branch
+---------------
+
+Enhancements
+~~~~~~~~~~~~
+
+- None
+
+Bugs
+~~~~
+
+- None
+
+API changes
+~~~~~~~~~~~
+
+- None
+
+
+Version - 0.4.3 (Stable - PyPi)
+---------------
+
+Enhancements
+~~~~~~~~~~~~
+
+- Rewrite Lee2019 to add P300 and SSVEP datasets (:gh:`217` by `Pierre Guetchel`_)
+
+Bugs
+~~~~
+
+- Avoid information leakage for MNE Epochs pipelines in evaluation (:gh:`222` by `Sylvain Chevallier`_)
+- Correct error in set_download_dir (:gh:`225` by `Sylvain Chevallier`_)
+- Ensure that channel order is consistent across dataset when channel argument is specified in paradigm (:gh:`229` by `Sylvain Chevallier`_)
+
+API changes
+~~~~~~~~~~~
+
+- ch_names argument added to init of moabb.datasets.fake.FakeDataset (:gh:`229` by `Sylvain Chevallier`_)
+
+Version - 0.4.2
+---------------
+
+Enhancements
+~~~~~~~~~~~~
+- None
+
+Bugs
+~~~~
+- Correct error when downloading Weibo dataset  (:gh:`212` by `Sylvain Chevallier`_)
+
+API changes
+~~~~~~~~~~~
+- None
+
+Version - 0.4.1
+---------------
+
+Enhancements
+~~~~~~~~~~~~
+- None
+
+Bugs
+~~~~
+- Correct path error for first time launch (:gh:`204` by `Sylvain Chevallier`_)
+- Fix optional dependencies issues for PyPi (:gh:`205` by `Sylvain Chevallier`_)
+
+API changes
+~~~~~~~~~~~
+- Remove update_path on all datasets, `update_path` parameter in `dataset.data_path()` is deprecated (:gh:`207` by `Sylvain Chevallier`_)
+
+Version - 0.4.0
 ---------------
 
 Enhancements
@@ -36,6 +107,7 @@ Enhancements
 - Broadening subject_list type for :func:`moabb.datasets.BaseDataset` (:gh:`198` by `Sylvain Chevallier`_)
 - Adding this what's new (:gh:`200` by `Sylvain Chevallier`_)
 - Improving cache usage and save computation time in CI (:gh:`200` by `Sylvain Chevallier`_)
+- Rewrite Lee2019 to add P300 and SSVEP datasets (:gh:`217` by `Pierre Guetchel`_)
 
 
 Bugs
@@ -49,7 +121,7 @@ API changes
 - Drop `update_path` from moabb.download.data_path and moabb.download.data_dl
 
 
-Current - 0.3.0
+Version 0.3.0
 ----------------
 
 Enhancements
@@ -148,3 +220,4 @@ API changes
 .. _Pedro L. C. Rodrigues: https://github.com/plcrodrigues
 .. _Robin Schirrmeister: https://github.com/robintibor
 .. _Jan Sosulski: https://github.com/jsosulski
+.. _Pierre Guetschel: https://github.com/PierreGtch
