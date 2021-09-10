@@ -63,6 +63,8 @@ class BaseP300(BaseParadigm):
         events=None,
         tmin=0.0,
         tmax=None,
+        reject_tmin=None,
+        reject_tmax=None,
         baseline=None,
         channels=None,
         resample=None,
@@ -82,6 +84,17 @@ class BaseP300(BaseParadigm):
 
         self.tmin = tmin
         self.tmax = tmax
+        if reject_tmin is not None:
+            if reject_tmin <= tmin:
+                raise ValueError(f'reject_tmin must be greater or equal to tmin:{tmin}')
+        if reject_tmax is not None:
+            if reject_tmax <= tmin:
+                raise ValueError(f'reject_tmax must be greater than tmin: {tmin}')
+        if reject_tmin is not None and reject_tmax is not None:
+            if reject_tmin >= reject_tmax:
+                raise ValueError('reject_tmax must be greater than reject_tmin')
+        self.reject_tmin = reject_tmin
+        self.reject_tmax = reject_tmax
 
     def is_valid(self, dataset):
         ret = True
@@ -134,7 +147,9 @@ class BaseP300(BaseParadigm):
             tmax = dataset.interval[1]
         else:
             tmax = self.tmax + dataset.interval[0]
-
+        if self.reject_tmax is not None:
+            if self.reject_tmax >= dataset.interval[1]:
+                raise ValueError('reject_tmax needs to be shorter than tmax')
         X = []
         runs = []
         for bandpass in self.filters:
@@ -159,6 +174,8 @@ class BaseP300(BaseParadigm):
                 event_id=event_id,
                 tmin=tmin,
                 tmax=tmax,
+                reject_tmin=self.reject_tmin,
+                reject_tmax=self.reject_tmax,
                 proj=False,
                 baseline=baseline,
                 preload=True,
