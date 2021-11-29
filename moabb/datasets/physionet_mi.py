@@ -83,6 +83,7 @@ class PhysionetMI(BaseDataset):
             doi="10.1109/TBME.2004.827072",
         )
 
+        self.n_channels = 64
         self.feet_runs = []
         self.hand_runs = []
 

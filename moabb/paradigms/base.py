@@ -144,6 +144,7 @@ class BaseParadigm(metaclass=ABCMeta):
         for bandpass in self.filters:
             fmin, fmax = bandpass
             # filter data
+            #heres 1 proble with too much data.
             raw_f = raw.copy().filter(
                 fmin, fmax, method="iir", picks=picks, verbose=False
             )
@@ -249,6 +250,7 @@ class BaseParadigm(metaclass=ABCMeta):
                 metadata = d["metadata"]
                 X = d["X"]
                 raws = None
+                print("Using cached data: Beware that it might not be the data you want!")
                 return X, labels, metadata, raws
             except Exception as e:
                 print("Could not read cached data. Preprocessing from scratch.")

@@ -305,4 +305,4 @@ class FakeP300Paradigm(P300):
 
     @property
     def datasets(self):
-        return [FakeDataset(["Target", "NonTarget"], paradigm="p300")]
+        return [FakeDataset(["Target", "NonTarget"], paradigm="p300")] 

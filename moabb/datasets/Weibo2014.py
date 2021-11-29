@@ -110,6 +110,7 @@ class Weibo2014(BaseDataset):
             paradigm="imagery",
             doi="10.1371/journal.pone.0114853",
         )
+        self.n_channels = 60
 
     def _get_single_subject_data(self, subject):
         """return data for a single subject"""
