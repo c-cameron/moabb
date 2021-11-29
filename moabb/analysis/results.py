@@ -127,14 +127,36 @@ class Results:
                     dset.attrs["n_subj"] = len(d1["dataset"].subject_list)
                     dset.attrs["n_sessions"] = d1["dataset"].n_sessions
                     dt = h5py.special_dtype(vlen=str)
+                    try:
+                        add_cols = [d1[ac] for ac in self.additional_columns]
+                    except KeyError:
+                        raise ValueError(
+                            f"Additional columns: {self.additional_columns} "
+                            f"were specified in the evaluation, but results"
+                            f" contain only these keys: {d1.keys()}."
+                        )
+                    string_col_ids = [ii for ii, val in enumerate(add_cols) if isinstance(val,str)]
+                    #can be simplified by taking all the other indices?
+                    numeric_col_ids = [ii for ii, val in enumerate(add_cols) if not isinstance(val, str)]
+                    n_string_cols = len(string_col_ids)
+                    n_num_cols = len(numeric_col_ids)
+
+                    print(f'{n_string_cols} Additional String Columns: {[self.additional_columns[ii] for ii in string_col_ids]}')
+                    dset.create_dataset("string_data",(0,n_string_cols),dtype=dt,maxshape=(None,n_string_cols))
+
                     dset.create_dataset("id", (0, 2), dtype=dt, maxshape=(None, 2))
                     dset.create_dataset(
-                        "data", (0, 3 + n_add_cols), maxshape=(None, 3 + n_add_cols)
+                        "numeric_data", (0, 3 + n_num_cols), maxshape=(None, 3 + n_num_cols)
                     )
                     dset.attrs["channels"] = d1["n_channels"]
                     dset.attrs.create(
-                        "columns",
-                        ["score", "time", "samples", *self.additional_columns],
+                        "numeric_columns",
+                        ["score", "time", "samples", *[self.additional_columns[ii] for ii in numeric_col_ids]],
+                        dtype=dt,
+                    )
+                    dset.attrs.create(
+                        "string_columns",
+                        [self.additional_columns[ii] for ii in string_col_ids],
                         dtype=dt,
                     )
                 dset = ppline_grp[dname]
@@ -142,19 +164,22 @@ class Results:
                     # add id and scores to group
                     length = len(dset["id"]) + 1
                     dset["id"].resize(length, 0)
-                    dset["data"].resize(length, 0)
+                    dset["numeric_data"].resize(length, 0)
+                    dset["string_data"].resize(length, 0)
                     dset["id"][-1, :] = np.asarray([str(d["subject"]), str(d["session"])])
                     try:
-                        add_cols = [d[ac] for ac in self.additional_columns]
+                        num_add_cols = [d[ac] for ac in self.additional_columns if not isinstance(d[ac],str)]
+                        str_add_cols = [d[ac] for ac in self.additional_columns if isinstance(d[ac], str)]
                     except KeyError:
                         raise ValueError(
                             f"Additional columns: {self.additional_columns} "
                             f"were specified in the evaluation, but results"
                             f" contain only these keys: {d.keys()}."
                         )
-                    dset["data"][-1, :] = np.asarray(
-                        [d["score"], d["time"], d["n_samples"], *add_cols]
+                    dset["numeric_data"][-1, :] = np.asarray(
+                        [d["score"], d["time"], d["n_samples"], *num_add_cols]
                     )
+                    dset["string_data"][-1, :] = str_add_cols
 
     def to_dataframe(self, pipelines=None):
         df_list = []
@@ -173,9 +198,17 @@ class Results:
 
                 name = p_group.attrs["name"]
                 for dname, dset in p_group.items():
-                    array = np.array(dset["data"])
+                    numeric_array = np.array(dset["numeric_data"])
+                    string_array = np.array(dset["string_data"].asstr())
                     ids = np.array(dset["id"])
-                    df = pd.DataFrame(array, columns=dset.attrs["columns"])
+                    numeric_df = pd.DataFrame(numeric_array, columns=dset.attrs["numeric_columns"])
+                    string_df = pd.DataFrame(string_array, columns=dset.attrs["string_columns"])
+                    #Whats the best way to assign make a df out of these?
+                    #Make a dict with values from numeric and string array by chaining numeric and string arrays,
+                    #As well as numeric and string columns and pass that to pd.DatafraME?
+                    # numeric_df[dset.attrs["string_columns"]] = string_array
+                    df = pd.concat([numeric_df,string_df],axis=1)
+
                     df["subject"] = [s.decode() for s in ids[:, 0]]
                     df["session"] = [s.decode() for s in ids[:, 1]]
                     df["channels"] = dset.attrs["channels"]
