@@ -151,6 +151,6 @@ class PhysionetMI(BaseDataset):
         sign = "EEGBCI"
         get_dataset_path(sign, None)
         paths = eegbci.load_data(
-            subject, runs=[1, 2] + self.hand_runs + self.feet_runs, verbose=verbose
+            subject, runs=[1, 2] + self.hand_runs + self.feet_runs, verbose=verbose,base_url=BASE_URL
         )
         return paths
