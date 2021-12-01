@@ -69,7 +69,7 @@ class Schirrmeister2017(BaseDataset):
             paradigm="imagery",
             doi="10.1002/hbm.23730",
         )
-
+        self.n_channels = 128
     def data_path(
         self, subject, path=None, force_update=False, update_path=None, verbose=None
     ):

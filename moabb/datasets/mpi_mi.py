@@ -66,7 +66,7 @@ class MunichMI(BaseDataset):
             paradigm="imagery",
             doi="10.1109/TBME.2008.2009768",
         )
-
+        self.n_channels = 128
     def _get_single_subject_data(self, subject):
         """return data for a single subject"""
         raw = mne.io.read_raw_eeglab(
