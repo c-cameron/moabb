@@ -141,7 +141,7 @@ class Results:
                     n_string_cols = len(string_col_ids)
                     n_num_cols = len(numeric_col_ids)
 
-                    print(f'{n_string_cols} Additional String Columns: {[self.additional_columns[ii] for ii in string_col_ids]}')
+                    #print(f'{n_string_cols} Additional String Columns: {[self.additional_columns[ii] for ii in string_col_ids]}')
                     dset.create_dataset("string_data",(0,n_string_cols),dtype=dt,maxshape=(None,n_string_cols))
 
                     dset.create_dataset("id", (0, 2), dtype=dt, maxshape=(None, 2))
