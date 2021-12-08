@@ -141,7 +141,10 @@ class BBCIDataset(object):
         info = mne.create_info(ch_names=wanted_sensor_names, sfreq=fs, ch_types=ch_types)
         # Scale to volts from microvolts, (VJ 19.6.18)
         continuous_signal = continuous_signal * 1e-6
+
         cnt = mne.io.RawArray(continuous_signal.T, info)
+        montage = mne.channels.make_standard_montage("standard_1005")
+        cnt.set_montage(montage)
         return cnt
 
     def _determine_sensors(self):
