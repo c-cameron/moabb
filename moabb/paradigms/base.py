@@ -285,20 +285,23 @@ class BaseParadigm(metaclass=ABCMeta):
                     met["subject"] = subject
                     met["session"] = session
                     met["run"] = run
-                    metadata.append(met)
 
                     # grow X and labels in a memory efficient way. can be slow
-                    if len(X) > 0:
-                        if return_epochs:
-                            X.append(x)
+                    if len(x[0]) > 0:
+                        metadata.append(met)
+                        if len(X) > 0:
+                            if return_epochs:
+                                X.append(x)
+                            else:
+                                X = np.append(X, x, axis=0)
+                            labels = np.append(labels, lbs, axis=0)
                         else:
-                            X = np.append(X, x, axis=0)
-                        labels = np.append(labels, lbs, axis=0)
+                            X = [x] if return_epochs else x
+                            labels = lbs
+                        if return_runs:
+                            processed_runs.append(praw)
                     else:
-                        X = [x] if return_epochs else x
-                        labels = lbs
-                    if return_runs:
-                        processed_runs.append(praw)
+                        print(f"All epochs were removed in run {run}. Are you sure this is right?")
 
         metadata = pd.concat(metadata, ignore_index=True)
         if return_epochs:

@@ -69,6 +69,7 @@ class BaseP300(BaseParadigm):
         channels=None,
         resample=None,
         reject_uv=None,
+        reject_from_eog=False,
     ):
         super().__init__()
         self.filters = filters
@@ -77,6 +78,7 @@ class BaseP300(BaseParadigm):
         self.baseline = baseline
         self.resample = resample
         self.reject_uv = reject_uv
+        self.reject_from_eog = reject_from_eog #Can be either be a string, kwarg dict for find_eog_events or True (uses dataset EOG channel
 
         if tmax is not None:
             if tmin >= tmax:
@@ -115,6 +117,29 @@ class BaseP300(BaseParadigm):
 
     def process_raw(self, raw, dataset, return_epochs=False, return_runs=False):
         # find the events, first check stim_channels then annotations
+        
+        if self.reject_from_eog:
+            if isinstance(self.reject_from_eog, dict):
+                #If its a dict, assuming its kwargs, no further checking.
+                eog_kwargs = self.reject_from_eog
+            elif isinstance(self.reject_from_eog, str):
+                eog_kwargs = {"ch_name":self.reject_from_eog}
+                if eog_kwargs["ch_name"] not in raw.ch_names:
+                    raise ValueError(f"{eog_kwargs['ch_name']} not in channels ")
+            elif self.reject_from_eog == True:
+                eog_kwargs = {"ch_name":None}
+            #EOG_CHANNEL = "EOGvu"
+
+            time_pre_blink = 0.25
+            blink_length = 0.7
+            eog_events = mne.preprocessing.find_eog_events(raw, **eog_kwargs)
+            onsets = eog_events[:, 0] / raw.info['sfreq'] - time_pre_blink
+            durations = [blink_length] * len(eog_events)
+            descriptions = ['bad blink'] * len(eog_events)
+            blink_annot = mne.Annotations(onsets, durations, descriptions,
+                                          orig_time=raw.info['meas_date'])
+            raw.set_annotations(raw.annotations + blink_annot)
+
         stim_channels = mne.utils._get_stim_channel(None, raw.info, raise_error=False)
         if len(stim_channels) > 0:
             events = mne.find_events(raw, shortest_event=0, verbose=False)
@@ -187,6 +212,7 @@ class BaseP300(BaseParadigm):
                 verbose=False,
                 picks=picks,
                 on_missing="ignore",
+                reject_by_annotation=self.reject_from_eog
             )
             epochs = mne.Epochs(
                 raw_f,
